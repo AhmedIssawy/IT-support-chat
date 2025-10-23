@@ -25,7 +25,7 @@ Highlights:
 ### Backend (`/backend`)
 
 ```bash
-PORT=3000
+PORT=5000
 MONGO_URI=your_mongo_uri_here
 
 NODE_ENV=development

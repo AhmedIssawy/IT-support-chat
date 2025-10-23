@@ -5,6 +5,7 @@ import { useAuthStore } from "./useAuthStore";
 
 export const useChatStore = create((set, get) => ({
   allContacts: [],
+  availableAdmins: [],
   chats: [],
   messages: [],
   activeTab: "chats",
@@ -26,6 +27,17 @@ export const useChatStore = create((set, get) => ({
     try {
       const res = await axiosInstance.get("/messages/contacts");
       set({ allContacts: res.data });
+    } catch (error) {
+      toast.error(error.response.data.message);
+    } finally {
+      set({ isUsersLoading: false });
+    }
+  },
+  getAvailAdmin: async () => {
+    set({ isUsersLoading: true });
+    try {
+      const res = await axiosInstance.get("/messages/avail-admin");
+      set({ availableAdmins: res.data });
     } catch (error) {
       toast.error(error.response.data.message);
     } finally {
