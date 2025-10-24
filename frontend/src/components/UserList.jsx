@@ -3,13 +3,13 @@ import { useChatStore } from "../store/useChatStore";
 import UsersLoadingSkeleton from "./UsersLoadingSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 
-function ContactList() {
-  const { getAllContacts, allContacts, setSelectedUser, isUsersLoading } = useChatStore();
+function UserList() {
+  const { getAllUsers, allContacts, setSelectedUser, isUsersLoading } = useChatStore();
   const { onlineUsers } = useAuthStore();
 
   useEffect(() => {
-    getAllContacts();
-  }, [getAllContacts]);
+    getAllUsers();
+  }, [getAllUsers]);
 
   if (isUsersLoading) return <UsersLoadingSkeleton />;
 
@@ -34,4 +34,4 @@ function ContactList() {
     </>
   );
 }
-export default ContactList;
+export default UserList;

@@ -1,6 +1,6 @@
 import express from "express";
 import {
-  getAllContacts,
+  getAllUsers,
   getAvailAdmin,
   getChatPartners,
   getMessagesByUserId,
@@ -15,7 +15,7 @@ const router = express.Router();
 // this is actually more efficient since unauthenticated requests get blocked by rate limiting before hitting the auth middleware.
 router.use( protectRoute);
 
-router.get("/contacts", getAllContacts);
+router.get("/users", getAllUsers);
 router.get("/avail-admin", getAvailAdmin);
 router.get("/chats", getChatPartners);
 router.get("/:id", getMessagesByUserId);
