@@ -20,7 +20,7 @@ export const getAllUsers = async (req, res) => {
 
 export const getAvailAdmin = async (req, res) => { // back "avail is not implemented yet"
   try {
-    const availableAdmins = await User.find({ isAdmin: true });
+    const availableAdmins = await User.find({ isAdmin: true }).select("-password").lean();
     res.status(200).json(availableAdmins);
   } catch (error) {
     console.log("Error in getAvailAdmin:", error);

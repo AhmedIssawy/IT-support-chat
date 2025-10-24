@@ -49,6 +49,6 @@ ARCJET_ENV=development
 ## 🔧 Run the application
 
 ```bash
-npm build
+npm install-deps
 npm run dev
 ```
