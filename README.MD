@@ -46,18 +46,9 @@ ARCJET_ENV=development
 
 ---
 
-## 🔧 Run the Backend
+## 🔧 Run the application
 
 ```bash
-cd backend
-npm install
-npm run dev
-```
-
-## 💻 Run the Frontend
-
-```bash
-cd frontend
-npm install
+npm build
 npm run dev
 ```
