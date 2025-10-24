@@ -10,7 +10,16 @@
     "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
     "start": "npm run start --prefix backend"
   },
-  "keywords": [],
+  "keywords": [
+    "chat",
+    "messaging",
+    "realtime",
+    "socket.io",
+    "react",
+    "nodejs",
+    "express",
+    "mongodb"
+  ],
   "author": "",
   "license": "ISC",
   "description": "",
