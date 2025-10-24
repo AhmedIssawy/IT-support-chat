@@ -1,7 +1,5 @@
 <h1 align="center">✨ Full-Stack Chat App with Auth & Emails ✨</h1>
 
-![Demo App](/frontend/public/screenshot-for-readme.png)
-
 Highlights:
 
 - 🔐 Custom JWT Authentication (no 3rd-party auth)
@@ -48,18 +46,9 @@ ARCJET_ENV=development
 
 ---
 
-## 🔧 Run the Backend
+## 🔧 Run the application
 
 ```bash
-cd backend
-npm install
-npm run dev
-```
-
-## 💻 Run the Frontend
-
-```bash
-cd frontend
-npm install
+npm build
 npm run dev
 ```
