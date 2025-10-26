@@ -1,34 +1,33 @@
 import { useChatStore } from "../store/useChatStore";
-
-import BorderAnimatedContainer from "../components/BorderAnimatedContainer";
-import ProfileHeader from "../components/ProfileHeader";
-import ActiveTabSwitch from "../components/ActiveTabSwitch";
-import ChatsList from "../components/ChatsList";
-import UserList from "../components/UserList";
-import ChatContainer from "../components/ChatContainer";
-import NoConversationPlaceholder from "../components/NoConversationPlaceholder";
+import ChatWidgetButton from "../components/ChatWidgetButton";
+import AdminListPanel from "../components/AdminListPanel";
+import ChatWidgetPanel from "../components/ChatWidgetPanel";
 
 function ChatPage() {
-  const { activeTab, selectedUser } = useChatStore();
+  const { isWidgetOpen, isAdminListOpen, isChatPanelOpen, toggleWidget } = useChatStore();
 
   return (
-    <div className="relative w-full max-w-6xl h-[800px]">
-      <BorderAnimatedContainer>
-        {/* LEFT SIDE */}
-        <div className="w-80 bg-slate-800/50 backdrop-blur-sm flex flex-col">
-          <ProfileHeader />
-          <ActiveTabSwitch />
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {activeTab === "chats" ? <ChatsList /> : <UserList />}
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      {/* Main content area - your existing app content goes here */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-200 mb-4">
+            Welcome to Support Chat
+          </h1>
+          <p className="text-lg text-slate-600 dark:text-slate-400">
+            Need help? Click the chat button to connect with our support team
+          </p>
         </div>
+      </div>
 
-        {/* RIGHT SIDE */}
-        <div className="flex-1 flex flex-col bg-slate-900/50 backdrop-blur-sm">
-          {selectedUser ? <ChatContainer /> : <NoConversationPlaceholder />}
-        </div>
-      </BorderAnimatedContainer>
+      {/* Floating Chat Widget Button */}
+      <ChatWidgetButton isOpen={isWidgetOpen} onClick={toggleWidget} />
+
+      {/* Admin List Panel */}
+      <AdminListPanel isOpen={isAdminListOpen} />
+
+      {/* Chat Widget Panel */}
+      <ChatWidgetPanel isOpen={isChatPanelOpen} />
     </div>
   );
 }

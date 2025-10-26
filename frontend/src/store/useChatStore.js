@@ -13,6 +13,9 @@ export const useChatStore = create((set, get) => ({
   isUsersLoading: false,
   isMessagesLoading: false,
   isSoundEnabled: JSON.parse(localStorage.getItem("isSoundEnabled")) === true,
+  isWidgetOpen: false,
+  isAdminListOpen: false,
+  isChatPanelOpen: false,
 
   toggleSound: () => {
     localStorage.setItem("isSoundEnabled", !get().isSoundEnabled);
@@ -21,6 +24,43 @@ export const useChatStore = create((set, get) => ({
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setSelectedUser: (selectedUser) => set({ selectedUser }),
+  
+  toggleWidget: () => {
+    const isOpen = !get().isWidgetOpen;
+    set({ isWidgetOpen: isOpen });
+    if (isOpen) {
+      set({ isAdminListOpen: true, isChatPanelOpen: false });
+      get().getAvailAdmin();
+    } else {
+      set({ isAdminListOpen: false, isChatPanelOpen: false, selectedUser: null });
+    }
+  },
+
+  openChatPanel: (admin) => {
+    set({ 
+      selectedUser: admin, 
+      isAdminListOpen: false, 
+      isChatPanelOpen: true 
+    });
+    get().getMessagesByUserId(admin._id);
+  },
+
+  closeChatPanel: () => {
+    set({ 
+      isChatPanelOpen: false, 
+      isAdminListOpen: true, 
+      selectedUser: null 
+    });
+  },
+
+  closeWidget: () => {
+    set({ 
+      isWidgetOpen: false, 
+      isAdminListOpen: false, 
+      isChatPanelOpen: false, 
+      selectedUser: null 
+    });
+  },
 
   getAllUsers: async () => {
     set({ isUsersLoading: true });
