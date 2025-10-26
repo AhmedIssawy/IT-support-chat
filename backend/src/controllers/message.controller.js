@@ -118,3 +118,61 @@ export const getChatPartners = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+/**
+ * Permanently delete all chat data between admin and user
+ * This function removes ALL messages and attachments with no trace
+ */
+export const permanentlyDeleteChat = async (adminId, userId) => {
+  try {
+    // Find all messages between admin and user
+    const messages = await Message.find({
+      $or: [
+        { senderId: adminId, receiverId: userId },
+        { senderId: userId, receiverId: adminId },
+      ],
+    });
+
+    // Delete images from Cloudinary (if any)
+    const imageUrls = messages
+      .filter(msg => msg.image)
+      .map(msg => msg.image);
+
+    // Extract public_ids from Cloudinary URLs and delete them
+    for (const imageUrl of imageUrls) {
+      try {
+        // Extract public_id from Cloudinary URL
+        // URL format: https://res.cloudinary.com/[cloud_name]/image/upload/[version]/[public_id].[format]
+        const urlParts = imageUrl.split('/');
+        const fileWithExtension = urlParts[urlParts.length - 1];
+        const publicId = fileWithExtension.split('.')[0];
+        
+        if (publicId) {
+          await cloudinary.uploader.destroy(publicId);
+        }
+      } catch (imageError) {
+        // Silently continue if image deletion fails
+        console.error("Error deleting image from Cloudinary:", imageError);
+      }
+    }
+
+    // Permanently delete ALL messages - complete removal from database
+    const deleteResult = await Message.deleteMany({
+      $or: [
+        { senderId: adminId, receiverId: userId },
+        { senderId: userId, receiverId: adminId },
+      ],
+    });
+
+    console.log(`Permanently deleted ${deleteResult.deletedCount} messages between admin ${adminId} and user ${userId}`);
+    
+    return {
+      success: true,
+      deletedCount: deleteResult.deletedCount,
+      deletedImages: imageUrls.length
+    };
+  } catch (error) {
+    console.error("Error in permanentlyDeleteChat:", error);
+    throw error;
+  }
+};

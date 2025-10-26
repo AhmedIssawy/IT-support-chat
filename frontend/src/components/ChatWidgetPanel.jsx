@@ -1,6 +1,6 @@
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { X, ArrowLeft, Circle, Clock, Mail } from "lucide-react";
+import { X, ArrowLeft, Circle, Clock, Mail, AlertCircle, RefreshCw, LogOut } from "lucide-react";
 import MessageInput from "./MessageInput";
 import MessagesLoadingSkeleton from "./MessagesLoadingSkeleton";
 import { useEffect, useRef } from "react";
@@ -8,7 +8,21 @@ import { formatMessageTime } from "../lib/utils";
 import { getChatLabels } from "../lib/chatLabels";
 
 function ChatWidgetPanel({ isOpen }) {
-  const { selectedUser, messages, isMessagesLoading, closeChatPanel, subscribeToMessages, unsubscribeFromMessages, clearNotifications, availableAdmins, showAdminList } = useChatStore();
+  const { 
+    selectedUser, 
+    messages, 
+    isMessagesLoading, 
+    closeChatPanel, 
+    subscribeToMessages, 
+    unsubscribeFromMessages, 
+    clearNotifications, 
+    availableAdmins, 
+    showAdminList,
+    isChatTerminated,
+    chatTerminationReason,
+    resetChatTermination,
+    toggleWidget
+  } = useChatStore();
   const { authUser, onlineUsers } = useAuthStore();
   const messagesEndRef = useRef(null);
   
@@ -36,6 +50,29 @@ function ChatWidgetPanel({ isOpen }) {
   // Check if this is a "no admin available" state (panel open but no selected user for regular users)
   const isWaitingList = !selectedUser && !isAdmin && isOpen;
   const isOnline = selectedUser ? onlineUsers.includes(selectedUser._id) : false;
+
+  const handleRestartChat = () => {
+    resetChatTermination();
+    closeChatPanel();
+    // Reopen widget to find new admin
+    setTimeout(() => {
+      toggleWidget();
+    }, 300);
+  };
+
+  const handleAdminLeaveChat = () => {
+    if (!selectedUser || !isAdmin) return;
+    
+    const confirmed = window.confirm("Are you sure you want to leave this chat? The user will be notified.");
+    if (confirmed) {
+      // Notify the user
+      const { notifyAdminLeaving } = useChatStore.getState();
+      notifyAdminLeaving(selectedUser._id);
+      
+      // Close the chat panel
+      closeChatPanel();
+    }
+  };
 
   return (
     <>
@@ -104,6 +141,18 @@ function ChatWidgetPanel({ isOpen }) {
                   {isOnline ? "Online" : "Offline"}
                 </p>
               </div>
+
+              {/* Admin Leave Chat Button */}
+              {isAdmin && (
+                <button
+                  onClick={handleAdminLeaveChat}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  aria-label="Leave chat"
+                  title="Leave this chat"
+                >
+                  <LogOut className="w-5 h-5 text-white" />
+                </button>
+              )}
             </>
           ) : null}
 
@@ -121,6 +170,36 @@ function ChatWidgetPanel({ isOpen }) {
 
         {/* Messages / Content Area */}
         <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 p-4 space-y-4">
+          {/* Chat Terminated Banner */}
+          {isChatTerminated && !isAdmin && (
+            <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-4 rounded-r-lg animate-fade-in">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-red-800 dark:text-red-200 mb-1 flex items-center gap-2">
+                    🔥 Chat Permanently Deleted
+                  </h4>
+                  <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+                    This chat has been permanently deleted because {chatTerminationReason?.adminName || "the admin"} is no longer online. 
+                    All messages and attachments have been removed with no trace remaining.
+                    {chatTerminationReason?.deletedCount > 0 && (
+                      <span className="block mt-2 font-medium">
+                        {chatTerminationReason.deletedCount} message{chatTerminationReason.deletedCount !== 1 ? 's' : ''} permanently deleted.
+                      </span>
+                    )}
+                  </p>
+                  <button
+                    onClick={handleRestartChat}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Start New Chat
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {isWaitingList ? (
             // Waiting list message - No admins available
             <div className="flex flex-col items-center justify-center h-full text-center px-6 animate-fade-in">
@@ -242,10 +321,21 @@ function ChatWidgetPanel({ isOpen }) {
           )}
         </div>
 
-        {/* Message Input - only show if we have a selected user */}
-        {selectedUser && !isWaitingList && (
+        {/* Message Input - only show if we have a selected user and chat is not terminated */}
+        {selectedUser && !isWaitingList && !isChatTerminated && (
           <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
             <MessageInput />
+          </div>
+        )}
+
+        {/* Disabled Message Input - show when chat is terminated */}
+        {selectedUser && isChatTerminated && !isAdmin && (
+          <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 p-4">
+            <div className="bg-slate-200 dark:bg-slate-800 rounded-lg px-4 py-3 text-center">
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                Chat ended. Input disabled.
+              </p>
+            </div>
           </div>
         )}
       </div>
