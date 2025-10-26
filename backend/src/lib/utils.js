@@ -12,10 +12,10 @@ export const generateToken = (userId, res) => {
   });
 
   res.cookie("__Security-auth", token, {
-    maxAge: 7 * 24 * 60 * 60 * 1000, // MS
-    httpOnly: true, // prevent XSS attacks: cross-site scripting
-    sameSite: "strict", // CSRF attacks
-    secure: ENV.NODE_ENV === "development" ? false : true,
+    maxAge: 7 * 24 * 60 * 60 * 1000, 
+    httpOnly: true, 
+    sameSite: "None", 
+    secure: String(ENV.NODE_ENV) === "development" ? false : true,
   });
 
   return token;
