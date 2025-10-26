@@ -1,22 +1,28 @@
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { X, ArrowLeft, Circle } from "lucide-react";
+import { X, ArrowLeft, Circle, Clock, Mail } from "lucide-react";
 import MessageInput from "./MessageInput";
 import MessagesLoadingSkeleton from "./MessagesLoadingSkeleton";
 import { useEffect, useRef } from "react";
 import { formatMessageTime } from "../lib/utils";
+import { getChatLabels } from "../lib/chatLabels";
 
 function ChatWidgetPanel({ isOpen }) {
-  const { selectedUser, messages, isMessagesLoading, closeChatPanel, subscribeToMessages, unsubscribeFromMessages } = useChatStore();
+  const { selectedUser, messages, isMessagesLoading, closeChatPanel, subscribeToMessages, unsubscribeFromMessages, clearNotifications, availableAdmins, showAdminList } = useChatStore();
   const { authUser, onlineUsers } = useAuthStore();
   const messagesEndRef = useRef(null);
+  
+  const isAdmin = authUser?.isAdmin || false;
+  const labels = getChatLabels(isAdmin);
 
   useEffect(() => {
     if (selectedUser) {
       subscribeToMessages();
+      // Clear notifications when chat panel opens
+      clearNotifications();
     }
     return () => unsubscribeFromMessages();
-  }, [selectedUser, subscribeToMessages, unsubscribeFromMessages]);
+  }, [selectedUser, subscribeToMessages, unsubscribeFromMessages, clearNotifications]);
 
   useEffect(() => {
     if (messagesEndRef.current && messages.length > 0) {
@@ -24,85 +30,170 @@ function ChatWidgetPanel({ isOpen }) {
     }
   }, [messages]);
 
-  if (!isOpen || !selectedUser) return null;
+  // Don't render if not open
+  if (!isOpen) return null;
 
-  const isOnline = onlineUsers.includes(selectedUser._id);
+  // Check if this is a "no admin available" state (panel open but no selected user for regular users)
+  const isWaitingList = !selectedUser && !isAdmin && isOpen;
+  const isOnline = selectedUser ? onlineUsers.includes(selectedUser._id) : false;
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden"
+        className={`fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
         onClick={closeChatPanel}
       ></div>
 
       {/* Chat Panel */}
       <div
-        className={`fixed bottom-0 right-0 w-full md:w-[450px] h-[600px] md:bottom-6 md:right-6 md:h-[700px] md:rounded-2xl bg-white dark:bg-slate-800 shadow-2xl overflow-hidden transition-all duration-300 transform z-50 flex flex-col ${
-          isOpen ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+        className={`fixed bottom-0 right-0 w-full md:w-[450px] h-[600px] md:bottom-6 md:right-6 md:h-[700px] md:rounded-2xl bg-white dark:bg-slate-800 shadow-2xl overflow-hidden transition-all duration-500 ease-out transform z-50 flex flex-col ${
+          isOpen 
+            ? "translate-x-0 translate-y-0 opacity-100 scale-100" 
+            : "translate-x-full md:translate-x-0 translate-y-full md:translate-y-4 opacity-0 scale-95"
         }`}
       >
         {/* Header */}
         <div className="bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-4 flex items-center gap-3 shadow-lg">
-          {/* Back button */}
+          {/* Back/Close button */}
           <button
             onClick={closeChatPanel}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Back to admin list"
+            aria-label={isWaitingList ? "Close" : labels.backButtonLabel}
           >
-            <ArrowLeft className="w-5 h-5 text-white" />
+            {isWaitingList ? (
+              <X className="w-5 h-5 text-white" />
+            ) : (
+              <ArrowLeft className="w-5 h-5 text-white" />
+            )}
           </button>
 
-          {/* Avatar */}
-          <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-white/30">
-              <img
-                src={selectedUser.profilePic || "/avatar.png"}
-                alt={selectedUser.fullName}
-                className="w-full h-full object-cover"
-              />
+          {isWaitingList ? (
+            // Waiting list header
+            <div className="flex-1">
+              <h3 className="font-semibold text-white">Support Queue</h3>
+              <p className="text-xs text-cyan-100">We'll connect you shortly</p>
             </div>
-            {/* Online indicator */}
-            <div
-              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-cyan-500 ${
-                isOnline ? "bg-green-400" : "bg-slate-400"
-              }`}
-            ></div>
-          </div>
+          ) : selectedUser ? (
+            // Normal chat header
+            <>
+              {/* Avatar */}
+              <div className="relative flex-shrink-0">
+                <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-white/30">
+                  <img
+                    src={selectedUser.profilePic || "/avatar.png"}
+                    alt={selectedUser.fullName}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* Online indicator */}
+                <div
+                  className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-cyan-500 ${
+                    isOnline ? "bg-green-400" : "bg-slate-400"
+                  }`}
+                ></div>
+              </div>
 
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-white truncate">{selectedUser.fullName}</h3>
-            <p className="text-xs text-cyan-100 flex items-center gap-1">
-              <Circle className={`w-2 h-2 ${isOnline ? "fill-green-400 text-green-400" : "fill-slate-400 text-slate-400"}`} />
-              {isOnline ? "Online" : "Offline"}
-            </p>
-          </div>
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-white truncate">{selectedUser.fullName}</h3>
+                <p className="text-xs text-cyan-100 flex items-center gap-1">
+                  <Circle className={`w-2 h-2 ${isOnline ? "fill-green-400 text-green-400" : "fill-slate-400 text-slate-400"}`} />
+                  {isOnline ? "Online" : "Offline"}
+                </p>
+              </div>
+            </>
+          ) : null}
 
-          {/* Close button */}
-          <button
-            onClick={closeChatPanel}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors md:hidden"
-            aria-label="Close chat"
-          >
-            <X className="w-5 h-5 text-white" />
-          </button>
+          {/* Close button (mobile only for normal chat) */}
+          {!isWaitingList && (
+            <button
+              onClick={closeChatPanel}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors md:hidden"
+              aria-label="Close chat"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+          )}
         </div>
 
-        {/* Messages */}
+        {/* Messages / Content Area */}
         <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 p-4 space-y-4">
-          {isMessagesLoading ? (
+          {isWaitingList ? (
+            // Waiting list message - No admins available
+            <div className="flex flex-col items-center justify-center h-full text-center px-6 animate-fade-in">
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-lg">
+                <Clock className="w-10 h-10 text-white" strokeWidth={2} />
+              </div>
+              <h4 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-3">
+                No Active Admins Right Now
+              </h4>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 leading-relaxed max-w-sm">
+                There are no active admins right now. You've been added to our waiting list. Once an admin becomes available, we'll send you an email at{" "}
+                <span className="font-semibold text-cyan-600 dark:text-cyan-400 inline-flex items-center gap-1">
+                  <Mail className="w-3.5 h-3.5 inline" />
+                  {authUser.email}
+                </span>
+                .
+              </p>
+              
+              {/* Available admins list (offline) */}
+              {availableAdmins.length > 0 && (
+                <div className="w-full max-w-sm mt-4">
+                  <div className="bg-white/50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3 uppercase tracking-wide">
+                      Support Team (Currently Offline)
+                    </p>
+                    <div className="space-y-2">
+                      {availableAdmins.slice(0, 3).map((admin) => (
+                        <div key={admin._id} className="flex items-center gap-3">
+                          <div className="relative">
+                            <img
+                              src={admin.profilePic || "/avatar.png"}
+                              alt={admin.fullName}
+                              className="w-8 h-8 rounded-full ring-2 ring-slate-200 dark:ring-slate-600"
+                            />
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-slate-400 rounded-full border-2 border-white dark:border-slate-800"></div>
+                          </div>
+                          <span className="text-sm text-slate-700 dark:text-slate-300">{admin.fullName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <button
+                onClick={closeChatPanel}
+                className="mt-8 px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                Got it, thanks!
+              </button>
+              
+              {/* View all admins option */}
+              {availableAdmins.length > 0 && (
+                <button
+                  onClick={showAdminList}
+                  className="mt-3 text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 font-medium underline underline-offset-2 transition-colors"
+                >
+                  View all support team members
+                </button>
+              )}
+            </div>
+          ) : isMessagesLoading ? (
             <MessagesLoadingSkeleton />
-          ) : messages.length === 0 ? (
+          ) : !selectedUser ? null : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
               <div className="bg-gradient-to-r from-cyan-500 to-blue-500 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-                <span className="text-2xl">👋</span>
+                <span className="text-2xl">{labels.chatWelcomeEmoji}</span>
               </div>
               <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
-                Start a conversation
+                {labels.chatWelcomeTitle}
               </h4>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Send a message to {selectedUser.fullName} to get started!
+                {labels.chatWelcomeText} {selectedUser.fullName} to get started!
               </p>
             </div>
           ) : (
@@ -151,10 +242,12 @@ function ChatWidgetPanel({ isOpen }) {
           )}
         </div>
 
-        {/* Message Input */}
-        <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-          <MessageInput />
-        </div>
+        {/* Message Input - only show if we have a selected user */}
+        {selectedUser && !isWaitingList && (
+          <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+            <MessageInput />
+          </div>
+        )}
       </div>
     </>
   );

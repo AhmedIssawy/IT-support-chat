@@ -52,7 +52,7 @@ export const authorizeMessageSender = async (req, res, next) => {
 
     // ❌ Reject if both are admins or both are normal users
     if ((sender.isAdmin && receiver.isAdmin) || (!sender.isAdmin && !receiver.isAdmin)) {
-      return res.status(403).json({ message: "Admins can only message users and vice versa." });
+      return res.status(403).json({ message: "Admins can only message users." });
     }
 
     // ✅ Allow only admin ↔ user

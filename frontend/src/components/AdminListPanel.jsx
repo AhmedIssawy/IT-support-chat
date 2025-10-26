@@ -2,10 +2,17 @@ import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import UsersLoadingSkeleton from "./UsersLoadingSkeleton";
 import { Users, ChevronRight } from "lucide-react";
+import { getChatLabels } from "../lib/chatLabels";
 
 function AdminListPanel({ isOpen }) {
-  const { availableAdmins, isUsersLoading, openChatPanel } = useChatStore();
-  const { onlineUsers } = useAuthStore();
+  const { availableAdmins, allContacts, isUsersLoading, openChatPanel } = useChatStore();
+  const { authUser, onlineUsers } = useAuthStore();
+  
+  const isAdmin = authUser?.isAdmin || false;
+  const labels = getChatLabels(isAdmin);
+  
+  // Admins see all users, regular users see admins
+  const contactList = isAdmin ? allContacts : availableAdmins;
 
   if (!isOpen) return null;
 
@@ -22,44 +29,44 @@ function AdminListPanel({ isOpen }) {
             <Users className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="text-white font-semibold text-lg">Support Team</h3>
-            <p className="text-cyan-100 text-sm">Choose an admin to chat with</p>
+            <h3 className="text-white font-semibold text-lg">{labels.panelTitle}</h3>
+            <p className="text-cyan-100 text-sm">{labels.panelSubtext}</p>
           </div>
         </div>
       </div>
 
-      {/* Admin List */}
+      {/* Contact List */}
       <div className="max-h-96 overflow-y-auto">
         {isUsersLoading ? (
           <div className="p-4">
             <UsersLoadingSkeleton />
           </div>
-        ) : availableAdmins.length === 0 ? (
+        ) : contactList.length === 0 ? (
           <div className="p-8 text-center">
             <div className="bg-slate-100 dark:bg-slate-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
               <Users className="w-8 h-8 text-slate-400" />
             </div>
-            <p className="text-slate-600 dark:text-slate-400 font-medium">No admins available</p>
+            <p className="text-slate-600 dark:text-slate-400 font-medium">{labels.panelEmptyTitle}</p>
             <p className="text-slate-500 dark:text-slate-500 text-sm mt-1">
-              Please try again later
+              {labels.panelEmptyText}
             </p>
           </div>
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-700">
-            {availableAdmins.map((admin) => {
-              const isOnline = onlineUsers.includes(admin._id);
+            {contactList.map((contact) => {
+              const isOnline = onlineUsers.includes(contact._id);
               return (
                 <button
-                  key={admin._id}
-                  onClick={() => openChatPanel(admin)}
+                  key={contact._id}
+                  onClick={() => openChatPanel(contact)}
                   className="w-full p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-4 group"
                 >
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
                     <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-slate-200 dark:ring-slate-600">
                       <img
-                        src={admin.profilePic || "/avatar.png"}
-                        alt={admin.fullName}
+                        src={contact.profilePic || "/avatar.png"}
+                        alt={contact.fullName}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -74,7 +81,7 @@ function AdminListPanel({ isOpen }) {
                   {/* Info */}
                   <div className="flex-1 text-left">
                     <h4 className="font-semibold text-slate-800 dark:text-slate-200 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
-                      {admin.fullName}
+                      {contact.fullName}
                     </h4>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       {isOnline ? "Available now" : "Offline"}
@@ -93,7 +100,7 @@ function AdminListPanel({ isOpen }) {
       {/* Footer */}
       <div className="bg-slate-50 dark:bg-slate-900 px-6 py-3 border-t border-slate-200 dark:border-slate-700">
         <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
-          Typically replies within a few minutes
+          {labels.panelFooter}
         </p>
       </div>
     </div>
