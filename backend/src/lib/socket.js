@@ -25,30 +25,33 @@ export function getReceiverSocketId(userId) {
 const userSocketMap = {}; // {userId:socketId}
 const adminDisconnectTimers = {}; // {adminId: timeoutId} - Track disconnect timers
 
-// Helper function to find all users chatting with an admin and delete their chats
 async function deleteAllAdminChats(adminId, adminName) {
   try {
-    // Find all users who have messages with this admin
-    const messages = await Message.find({
+    // find all messages involving this admin (use .lean() for performance)
+    const msgs = await Message.find({
       $or: [{ senderId: adminId }, { receiverId: adminId }]
-    }).distinct('senderId receiverId');
-    
-    const uniqueUserIds = [...new Set(
-      messages
-        .map(id => id.toString())
-        .filter(id => id !== adminId.toString())
-    )];
-    
+    }).lean();
+
+    // collect unique other-party user IDs (exclude the admin itself)
+    const userIdSet = new Set();
+    for (const m of msgs) {
+      const sid = m.senderId?.toString();
+      const rid = m.receiverId?.toString();
+      if (sid && sid !== adminId.toString()) userIdSet.add(sid);
+      if (rid && rid !== adminId.toString()) userIdSet.add(rid);
+    }
+    const uniqueUserIds = [...userIdSet];
+
     console.log(`Deleting chats for admin ${adminId} with ${uniqueUserIds.length} users`);
-    
-    // Permanently delete chats with each user
+
     for (const targetUserId of uniqueUserIds) {
       try {
         const deleteResult = await permanentlyDeleteChat(adminId, targetUserId);
-        
-        console.log(`Chat permanently deleted: Admin ${adminId} - User ${targetUserId}, ${deleteResult.deletedCount} messages deleted`);
-        
-        // Notify each user that their chat was permanently deleted
+        // support different return shapes from permanentlyDeleteChat
+        const deletedCount = deleteResult.deletedCount ?? deleteResult.deletedMessages ?? 0;
+
+        console.log(`Chat permanently deleted: Admin ${adminId} - User ${targetUserId}, ${deletedCount} messages deleted`);
+
         const receiverSocketId = getReceiverSocketId(targetUserId);
         if (receiverSocketId) {
           io.to(receiverSocketId).emit("chatPermanentlyDeleted", {
@@ -56,14 +59,14 @@ async function deleteAllAdminChats(adminId, adminName) {
             adminName: adminName,
             reason: "admin_offline",
             timestamp: new Date().toISOString(),
-            deletedCount: deleteResult.deletedCount
+            deletedCount
           });
         }
       } catch (deleteError) {
         console.error(`Error deleting chat with user ${targetUserId}:`, deleteError);
       }
     }
-    
+
     return uniqueUserIds.length;
   } catch (error) {
     console.error("Error in deleteAllAdminChats:", error);
@@ -78,7 +81,6 @@ io.on("connection", (socket) => {
   const isAdmin = socket.user.isAdmin;
   userSocketMap[userId] = socket.id;
 
-  // If admin reconnects, cancel any pending deletion timer
   if (isAdmin && adminDisconnectTimers[userId]) {
     console.log(`Admin ${userId} reconnected. Canceling deletion timer.`);
     clearTimeout(adminDisconnectTimers[userId]);
