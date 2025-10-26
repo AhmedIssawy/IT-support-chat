@@ -88,7 +88,7 @@ function ChatWidgetPanel({ isOpen }) {
       <div
         className={`fixed bottom-0 right-0 w-full md:w-[450px] h-[600px] md:bottom-6 md:right-6 md:h-[700px] md:rounded-2xl bg-white dark:bg-slate-800 shadow-2xl overflow-hidden transition-all duration-500 ease-out transform z-50 flex flex-col ${
           isOpen 
-            ? "translate-x-0 translate-y-0 opacity-100 scale-100" 
+            ? "translate-x-0 translate-y-0 opacity-100 scale-100 animate-slide-up" 
             : "translate-x-full md:translate-x-0 translate-y-full md:translate-y-4 opacity-0 scale-95"
         }`}
       >

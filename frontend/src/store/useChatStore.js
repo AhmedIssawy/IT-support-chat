@@ -235,7 +235,7 @@ export const useChatStore = create((set, get) => ({
       return;
     }
     
-    // If widget is closed, open it with the chat panel
+    // If widget is closed, auto-open it with the chat panel
     if (!isWidgetOpen) {
       // First, fetch the sender's data
       const fetchSenderAndOpen = async () => {
@@ -269,12 +269,74 @@ export const useChatStore = create((set, get) => ({
           }
         } catch (error) {
           console.error("Error auto-opening chat:", error);
+          // Show notification badge if auto-open fails
+          set({ 
+            hasNewMessage: true,
+            unreadCount: get().unreadCount + 1
+          });
         }
       };
       
       fetchSenderAndOpen();
-    } else if (!isChatPanelOpen) {
-      // Widget is open but chat panel is not - show notification
+    } else if (isWidgetOpen && !isChatPanelOpen) {
+      // Widget is open but chat panel is closed - auto-open the chat panel
+      const fetchSenderAndOpen = async () => {
+        try {
+          const contacts = isAdmin ? get().allContacts : get().availableAdmins;
+          const sender = contacts.find(c => c._id === senderId);
+          
+          if (sender) {
+            set({ 
+              isAdminListOpen: false,
+              isChatPanelOpen: true,
+              selectedUser: sender,
+              unreadCount: 0,
+              hasNewMessage: false
+            });
+            get().getMessagesByUserId(senderId);
+            
+            // Save admin ID for non-admin users
+            if (!isAdmin) {
+              localStorage.setItem("lastAdminId", senderId);
+            }
+          } else {
+            // Sender not in current list, fetch fresh data
+            if (isAdmin) {
+              await get().getAllUsers();
+            } else {
+              await get().getAvailAdmin();
+            }
+            const updatedContacts = isAdmin ? get().allContacts : get().availableAdmins;
+            const updatedSender = updatedContacts.find(c => c._id === senderId);
+            
+            if (updatedSender) {
+              set({ 
+                isAdminListOpen: false,
+                isChatPanelOpen: true,
+                selectedUser: updatedSender,
+                unreadCount: 0,
+                hasNewMessage: false
+              });
+              get().getMessagesByUserId(senderId);
+              
+              if (!isAdmin) {
+                localStorage.setItem("lastAdminId", senderId);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error opening chat panel:", error);
+          // Show notification badge if auto-open fails
+          set({ 
+            hasNewMessage: true,
+            unreadCount: get().unreadCount + 1
+          });
+        }
+      };
+      
+      fetchSenderAndOpen();
+    } else if (isChatPanelOpen && selectedUser?._id !== senderId) {
+      // Chat panel is open but with different user - show notification badge
       set({ 
         hasNewMessage: true,
         unreadCount: get().unreadCount + 1

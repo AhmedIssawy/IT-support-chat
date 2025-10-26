@@ -30,25 +30,30 @@ function ChatWidgetButton({ isOpen, onClick }) {
         className={`group relative w-16 h-16 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-cyan-300 ${
           isOpen
             ? "bg-red-500 hover:bg-red-600"
-            : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:shadow-cyan-500/50"
+            : hasNewMessage 
+              ? "bg-gradient-to-r from-red-500 to-pink-500 hover:shadow-red-500/50 animate-pulse" 
+              : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:shadow-cyan-500/50"
         }`}
         aria-label={isOpen ? "Close chat" : labels.buttonAriaLabel}
       >
         {/* Notification badge */}
         {!isOpen && hasNewMessage && unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse border-2 border-white shadow-lg z-10">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-white shadow-lg z-10 animate-scale-in">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
         
         {/* Ping animation when closed */}
-        {!isOpen && (
+        {!isOpen && !hasNewMessage && (
           <span className="absolute inset-0 rounded-full bg-cyan-400 animate-ping opacity-20"></span>
         )}
         
         {/* Extra ping for new messages */}
         {!isOpen && hasNewMessage && (
-          <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-30"></span>
+          <>
+            <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-30"></span>
+            <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-20" style={{ animationDelay: '0.2s' }}></span>
+          </>
         )}
         
         <div className={`absolute inset-0 flex items-center justify-center transition-transform duration-300 ${isOpen ? 'rotate-90' : 'rotate-0'}`}>
