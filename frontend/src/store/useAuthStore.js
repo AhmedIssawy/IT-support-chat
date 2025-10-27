@@ -3,7 +3,8 @@ import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+// Remove /api from the base URL for socket connection
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -89,24 +90,56 @@ export const useAuthStore = create((set, get) => ({
   },
 
   connectSocket: () => {
-    const { authUser } = get();
-    if (!authUser || get().socket?.connected) return;
+    const { authUser, socket } = get();
+    if (!authUser) return;
+    
+    // If socket exists and is connected, don't create a new one
+    if (socket?.connected) {
+      console.log("Socket already connected");
+      return;
+    }
+    
+    // Disconnect existing socket if any
+    if (socket) {
+      socket.disconnect();
+    }
 
-    const socket = io(BASE_URL, {
-      withCredentials: true, // this ensures cookies are sent with the connection
+    console.log("Connecting to socket...");
+    const newSocket = io(BASE_URL, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
-    socket.connect();
+    newSocket.on("connect", () => {
+      console.log("Socket connected successfully", newSocket.id);
+    });
 
-    set({ socket });
+    newSocket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+    });
 
-    // listen for online users event
-    socket.on("getOnlineUsers", (userIds) => {
+    newSocket.on("disconnect", (reason) => {
+      console.log("Socket disconnected:", reason);
+    });
+
+    set({ socket: newSocket });
+
+    // Listen for online users event
+    newSocket.on("getOnlineUsers", (userIds) => {
+      console.log("Online users updated:", userIds);
       set({ onlineUsers: userIds });
     });
   },
 
   disconnectSocket: () => {
-    if (get().socket?.connected) get().socket.disconnect();
+    const socket = get().socket;
+    if (socket?.connected) {
+      console.log("Disconnecting socket...");
+      socket.disconnect();
+      set({ socket: null, onlineUsers: [] });
+    }
   },
 }));

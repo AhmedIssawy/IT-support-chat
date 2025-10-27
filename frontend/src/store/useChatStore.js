@@ -404,57 +404,83 @@ export const useChatStore = create((set, get) => ({
       text: messageData.text,
       image: messageData.image,
       createdAt: new Date().toISOString(),
-      isOptimistic: true, // flag to identify optimistic messages (optional)
+      isOptimistic: true,
     };
-    // immidetaly update the ui by adding the message
+    
+    // Immediately update the UI by adding the optimistic message
     set({ messages: [...messages, optimisticMessage] });
 
     try {
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
-      set({ messages: messages.concat(res.data) });
+      
+      // Remove optimistic message and add the real one
+      const updatedMessages = messages.filter(msg => msg._id !== tempId);
+      set({ messages: [...updatedMessages, res.data] });
       
       // Save admin ID for non-admin users to remember last conversation
       if (!isAdmin) {
         localStorage.setItem("lastAdminId", selectedUser._id);
       }
     } catch (error) {
-      // remove optimistic message on failure
-      set({ messages: messages });
+      // Remove optimistic message on failure
+      set({ messages: messages.filter(msg => msg._id !== tempId) });
       toast.error(error.response?.data?.message || "Something went wrong");
     }
   },
 
   subscribeToMessages: () => {
-    const { selectedUser, isSoundEnabled } = get();
-    if (!selectedUser) return;
-
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+
     const { authUser } = useAuthStore.getState();
     const isAdmin = authUser?.isAdmin || false;
 
+    // Remove any existing listeners to prevent duplicates
+    socket.off("newMessage");
+    socket.off("adminLeftChat");
+    socket.off("adminWentOffline");
+    socket.off("chatPermanentlyDeleted");
+
+    // Global newMessage listener
     socket.on("newMessage", (newMessage) => {
-      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
+      const { selectedUser, isSoundEnabled, messages } = get();
       const isMyMessage = newMessage.senderId === authUser._id;
       
-      if (!isMessageSentFromSelectedUser) return;
-
-      const currentMessages = get().messages;
-      set({ messages: [...currentMessages, newMessage] });
+      // Update messages if this message belongs to the currently selected chat
+      if (selectedUser) {
+        const isRelevantToCurrentChat = 
+          (newMessage.senderId === selectedUser._id) || 
+          (newMessage.receiverId === selectedUser._id && isMyMessage);
+        
+        if (isRelevantToCurrentChat) {
+          // Remove any optimistic message with same text/image if it's our message
+          let updatedMessages = messages;
+          if (isMyMessage) {
+            updatedMessages = messages.filter(msg => {
+              if (msg.isOptimistic && msg.text === newMessage.text && msg.image === newMessage.image) {
+                return false;
+              }
+              return true;
+            });
+          }
+          set({ messages: [...updatedMessages, newMessage] });
+        }
+      }
 
       // Auto-open chat if message is from someone else
       if (!isMyMessage) {
         get().autoOpenChatOnNewMessage(newMessage.senderId);
         
-        // Clear notifications if chat panel is open
-        if (get().isChatPanelOpen) {
+        // Clear notifications if chat panel is open to this user
+        if (get().isChatPanelOpen && selectedUser?._id === newMessage.senderId) {
           set({ unreadCount: 0, hasNewMessage: false });
         }
       }
 
+      // Play sound for incoming messages
       if (isSoundEnabled && !isMyMessage) {
         const notificationSound = new Audio("/sounds/notification.mp3");
-
-        notificationSound.currentTime = 0; // reset to start
+        notificationSound.currentTime = 0;
         notificationSound.play().catch((e) => console.log("Audio play failed:", e));
       }
     });
@@ -462,21 +488,24 @@ export const useChatStore = create((set, get) => ({
     // Listen for admin leaving chat (intentional)
     if (!isAdmin) {
       socket.on("adminLeftChat", (data) => {
-        if (data.adminId === selectedUser._id) {
+        const { selectedUser } = get();
+        if (selectedUser && data.adminId === selectedUser._id) {
           get().terminateChat("admin_left", data.adminName);
         }
       });
 
       // Listen for admin going offline (disconnect)
       socket.on("adminWentOffline", (data) => {
-        if (data.adminId === selectedUser._id) {
+        const { selectedUser } = get();
+        if (selectedUser && data.adminId === selectedUser._id) {
           get().terminateChat("admin_offline", data.adminName);
         }
       });
 
       // Listen for permanent chat deletion
       socket.on("chatPermanentlyDeleted", (data) => {
-        if (data.adminId === selectedUser._id) {
+        const { selectedUser } = get();
+        if (selectedUser && data.adminId === selectedUser._id) {
           get().permanentlyDeleteChat(data.reason, data.adminName, data.deletedCount);
         }
       });
@@ -485,6 +514,8 @@ export const useChatStore = create((set, get) => ({
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+    
     socket.off("newMessage");
     socket.off("adminLeftChat");
     socket.off("adminWentOffline");

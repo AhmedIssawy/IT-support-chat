@@ -14,7 +14,7 @@ export const generateToken = (userId, res) => {
   res.cookie("__Security-auth", token, {
     maxAge: 7 * 24 * 60 * 60 * 1000, 
     httpOnly: true, 
-    sameSite: "None", 
+    sameSite: "Lax", 
     secure: String(ENV.NODE_ENV) === "development" ? false : true,
   });
 

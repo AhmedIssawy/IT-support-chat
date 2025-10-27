@@ -8,11 +8,22 @@ import Header from "../components/Header";
 import { getChatLabels } from "../lib/chatLabels";
 
 function ChatPage() {
-  const { isWidgetOpen, isAdminListOpen, isChatPanelOpen, toggleWidget, autoOpenChatOnNewMessage } = useChatStore();
+  const { isWidgetOpen, isAdminListOpen, isChatPanelOpen, toggleWidget, autoOpenChatOnNewMessage, subscribeToMessages, unsubscribeFromMessages } = useChatStore();
   const { authUser, socket } = useAuthStore();
   
   const isAdmin = authUser?.isAdmin || false;
   const labels = getChatLabels(isAdmin);
+
+  // Subscribe to socket messages globally when socket is available
+  useEffect(() => {
+    if (!socket) return;
+    
+    subscribeToMessages();
+    
+    return () => {
+      unsubscribeFromMessages();
+    };
+  }, [socket, subscribeToMessages, unsubscribeFromMessages]);
 
   // Admin beforeunload handler - delete all chats when closing/reloading
   useEffect(() => {
@@ -49,23 +60,23 @@ function ChatPage() {
     };
   }, [isAdmin, socket, authUser]);
 
-  // Global message listener for auto-opening chat
-  useEffect(() => {
-    if (!socket) return;
+  // Global message listener for auto-opening chat - REMOVED (now handled in subscribeToMessages)
+  // useEffect(() => {
+  //   if (!socket) return;
 
-    const handleNewMessage = (newMessage) => {
-      // Only auto-open if message is not from current user
-      if (newMessage.senderId !== authUser._id) {
-        autoOpenChatOnNewMessage(newMessage.senderId);
-      }
-    };
+  //   const handleNewMessage = (newMessage) => {
+  //     // Only auto-open if message is not from current user
+  //     if (newMessage.senderId !== authUser._id) {
+  //       autoOpenChatOnNewMessage(newMessage.senderId);
+  //     }
+  //   };
 
-    socket.on("newMessage", handleNewMessage);
+  //   socket.on("newMessage", handleNewMessage);
 
-    return () => {
-      socket.off("newMessage", handleNewMessage);
-    };
-  }, [socket, authUser, autoOpenChatOnNewMessage]);
+  //   return () => {
+  //     socket.off("newMessage", handleNewMessage);
+  //   };
+  // }, [socket, authUser, autoOpenChatOnNewMessage]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
